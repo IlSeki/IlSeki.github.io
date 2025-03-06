@@ -1,23 +1,39 @@
-import logo from './logo.svg';
+import React, { useState } from 'react';
+import Menu from './components/Menu';
+import Race from './components/Race';
 import './App.css';
 
 function App() {
+  // phase: "menu" oppure "race" (dopo la raccolta dei dati)
+  const [phase, setPhase] = useState("menu");
+  // memorizziamo le biglie inserite nel menu (array di oggetti { id, name, image, color })
+  const [marbles, setMarbles] = useState([]);
+
+  // Quando la gara termina, qui potresti salvare i risultati
+  const handleRaceEnd = (finalState) => {
+    console.log("Risultato gara:", finalState);
+    // Per semplicità, torniamo al menu
+    setPhase("menu");
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="App container">
+      {phase === "menu" && (
+        <Menu 
+          marbles={marbles}
+          setMarbles={setMarbles}
+          onStart={() => {
+            if(marbles.length > 0) {
+              setPhase("race");
+            } else {
+              alert("Aggiungi almeno una biglia per iniziare la gara!");
+            }
+          }}
+        />
+      )}
+      {phase === "race" && (
+        <Race marbles={marbles} onRaceEnd={handleRaceEnd} />
+      )}
     </div>
   );
 }
