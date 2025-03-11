@@ -41,7 +41,7 @@ function MarbleRace() {
 
   // Effetto per verificare se una biglia ha raggiunto il traguardo
   useEffect(() => {
-    if (raceStarted) {
+    if (raceStarted && !winner) {
       const finishingMarble = marbles.find(m => m.position >= 100);
       if (finishingMarble) {
         setWinner(`Biglia ${finishingMarble.id}`);
@@ -49,7 +49,7 @@ function MarbleRace() {
         clearInterval(raceIntervalRef.current);
       }
     }
-  }, [marbles, raceStarted]);
+  }, [marbles, raceStarted, winner]);
 
   return (
     <div className="race-container">

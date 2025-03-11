@@ -259,12 +259,22 @@ function Race({ marbles, onRaceEnd }) {
   
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(err => {
+      containerRef.current.requestFullscreen().then(() => {
+        containerRef.current.style.width = '100%';
+        containerRef.current.style.height = '100%';
+      }).catch(err => {
         console.error(`Errore nel passaggio a fullscreen: ${err.message}`);
       });
     } else {
-      document.exitFullscreen();
+      document.exitFullscreen().then(() => {
+        containerRef.current.style.width = '';
+        containerRef.current.style.height = '';
+      });
     }
+  };
+
+  const handleReturnToMenu = () => {
+    onRaceEnd(raceMarbles);
   };
 
   const leader = raceMarbles.reduce((prev, cur) => (cur.y > prev.y ? cur : prev), raceMarbles[0]);
@@ -276,6 +286,22 @@ function Race({ marbles, onRaceEnd }) {
         Camera segue: {Math.floor(cameraOffset)} px
       </div>
       <FullscreenButton onToggle={toggleFullScreen} />
+      <button onClick={handleReturnToMenu} style={{
+        position: 'absolute',
+        top: '10px',
+        right: '100px',
+        zIndex: 10,
+        background: '#33ff99',
+        color: '#333',
+        border: 'none',
+        padding: '8px 12px',
+        borderRadius: '5px',
+        cursor: 'pointer',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+        fontWeight: 'bold'
+      }}>
+        Torna al menu
+      </button>
       <div ref={containerRef} className="race-container">
         <RaceHUD elapsedTime={elapsedTime} leader={leader} />
         <FinishLine finishY={FINISH_LINE} cameraOffset={cameraOffset} />
@@ -311,7 +337,10 @@ function Race({ marbles, onRaceEnd }) {
             <h2 style={{ fontSize: '48px', marginBottom: '30px', textShadow: '1px 1px 3px #000' }}>
               La biglia "{winner.name}" ha dominato il traguardo!
             </h2>
+            {/* Pulsante riposizionato in fondo */}
             <button onClick={() => onRaceEnd(raceMarbles)} style={{
+              position: 'absolute',
+              bottom: '20px',
               padding: '12px 24px',
               fontSize: '24px',
               background: '#33ff99',
@@ -320,7 +349,7 @@ function Race({ marbles, onRaceEnd }) {
               cursor: 'pointer',
               boxShadow: '0 4px 10px rgba(0,0,0,0.4)',
               fontWeight: 'bold',
-              color: '#333' // Improved color scheme
+              color: '#333'
             }}>
               Torna al menu
             </button>
