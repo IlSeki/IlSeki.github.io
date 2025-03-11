@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './Menu.css'; // Import a CSS file for additional styling
 
 // Funzione per generare un colore casuale
 const randomColor = () => {
@@ -32,51 +33,45 @@ function Menu({ marbles, setMarbles, onStart }) {
   };
 
   return (
-    <div>
-      <h1>Menu Iniziale - Inserisci le Biglie</h1>
-      <div style={{ marginBottom: '20px' }}>
+    <div className="menu-container">
+      <h1 className="menu-title">Menu Iniziale - Inserisci le Biglie</h1>
+      <div className="input-container">
         <input
           type="text"
           placeholder="Nome biglia"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          style={{ padding: '8px', marginRight: '8px' }}
+          className="input-field"
         />
         <input
           type="text"
           placeholder="URL immagine (opzionale)"
           value={image}
           onChange={(e) => setImage(e.target.value)}
-          style={{ padding: '8px', marginRight: '8px', width: '300px' }}
+          className="input-field"
         />
-        <button onClick={handleAddMarble} style={{ padding: '8px 16px' }}>
+        <button onClick={handleAddMarble} className="add-button">
           Aggiungi Biglia
         </button>
       </div>
       {marbles.length > 0 && (
-        <div style={{ marginBottom: '20px' }}>
-          <h2>Biglie Aggiunte:</h2>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
+        <div className="marbles-list-container">
+          <h2 className="marbles-list-title">Biglie Aggiunte:</h2>
+          <ul className="marbles-list">
             {marbles.map(marble => (
-              <li key={marble.id} style={{ marginBottom: '10px', display: 'flex', alignItems: 'center' }}>
+              <li key={marble.id} className="marble-item">
                 {marble.image ? (
-                  <img src={marble.image} alt={marble.name} style={{ width: '40px', height: '40px', borderRadius: '50%', marginRight: '10px' }} />
+                  <img src={marble.image} alt={marble.name} className="marble-image" />
                 ) : (
-                  <div style={{ 
-                    width: '40px', 
-                    height: '40px', 
-                    borderRadius: '50%', 
-                    backgroundColor: marble.color, 
-                    marginRight: '10px' 
-                  }}></div>
+                  <div className="marble-color" style={{ backgroundColor: marble.color, border: '2px solid #fff' }}></div>
                 )}
-                <span>{marble.name}</span>
+                <span className="marble-name">{marble.name}</span>
               </li>
             ))}
           </ul>
         </div>
       )}
-      <button onClick={onStart} style={{ padding: '10px 20px', fontSize: '16px' }}>
+      <button onClick={onStart} className="start-button" style={{ backgroundColor: '#33ff99', color: '#333' }}>
         Inizia Gara
       </button>
     </div>

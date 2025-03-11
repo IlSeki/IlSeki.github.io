@@ -61,7 +61,7 @@ function MarbleRace() {
       <div>
         {!raceStarted && <button onClick={startRace}>Inizia Gara</button>}
       </div>
-      {winner && <div style={{ marginTop: '10px', fontSize: '20px' }}>Vincitore: {winner}</div>}
+      {winner && <div style={{ marginTop: '10px', fontSize: '20px', color: '#333' }}>Vincitore: {winner}</div>}
     </div>
   );
 }

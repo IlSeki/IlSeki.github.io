@@ -1,146 +1,18 @@
 // src/components/Race.js
 import React, { useState, useEffect, useRef } from 'react';
 import Marble from './Marble';
-import Obstacle from './Obstacle';
+import Obstacle, { generateObstacles } from './Obstacle';
 import FinishLine from './FinishLine';
 import RaceHUD from './RaceHUD';
 import FullscreenButton from './FullscreenButton';
 import '../App.css';
 
-const VIRTUAL_WIDTH = 800;
+const VIRTUAL_WIDTH = 800; // Ensure VIRTUAL_WIDTH is defined here
 const FINISH_LINE = 10000; // Percorso molto più lungo
 const ACCELERATION = 400; // Accelerazione aumentata
 const MARBLE_SIZE = 40; // Dimensione della biglia
 const INITIAL_BOOST = 150; // Velocità iniziale per partire subito
 const MAX_VELOCITY = 300; // Velocità massima per limitare rimbalzi eccessivi
-
-// Genera ostacoli più vari e complessi, con spazio garantito per il passaggio
-const generateObstacles = (num = 25) => {
-  let obstacles = [];
-  
-  // Funzione per evitare sovrapposizioni
-  const checkOverlap = (newObj) => {
-    const safetyMargin = 20;
-    const expandedObj = {
-      x: newObj.x - safetyMargin,
-      y: newObj.y - safetyMargin,
-      width: newObj.width + (safetyMargin * 2),
-      height: newObj.height + (safetyMargin * 2)
-    };
-    
-    return obstacles.some(obj => 
-      expandedObj.x < obj.x + obj.width &&
-      expandedObj.x + expandedObj.width > obj.x &&
-      expandedObj.y < obj.y + obj.height &&
-      expandedObj.y + expandedObj.height > obj.y
-    );
-  };
-  
-  for (let i = 0; i < num; i++) {
-    const baseY = 200 + i * ((FINISH_LINE - 400) / num);
-    const yVariation = ((FINISH_LINE - 400) / num) * 0.4;
-    const obstacleType = Math.random();
-    
-    if (obstacleType < 0.25) {
-      // Tunnel: spazio garantito con gap pari a MARBLE_SIZE+40
-      const gapWidth = MARBLE_SIZE + 40;
-      const gapPosition = 100 + Math.random() * (VIRTUAL_WIDTH - 200 - gapWidth);
-      const obstacleY = baseY + (Math.random() * yVariation) - (yVariation / 2);
-      
-      const leftObj = { 
-        id: `tunnel_left_${i}`, 
-        x: 0, 
-        y: obstacleY, 
-        width: gapPosition, 
-        height: 40, 
-        type: "tunnel" 
-      };
-      
-      const rightObj = { 
-        id: `tunnel_right_${i}`, 
-        x: gapPosition + gapWidth, 
-        y: obstacleY, 
-        width: VIRTUAL_WIDTH - gapPosition - gapWidth, 
-        height: 40, 
-        type: "tunnel" 
-      };
-      
-      obstacles.push(leftObj);
-      obstacles.push(rightObj);
-    }
-    else if (obstacleType < 0.5) {
-      // Gruppo di pale rotanti ravvicinate
-      const numBlades = 2 + Math.floor(Math.random() * 3);
-      const bladeWidth = 60;
-      const spacing = (VIRTUAL_WIDTH - (numBlades * bladeWidth)) / (numBlades + 1);
-      
-      for (let j = 0; j < numBlades; j++) {
-        const x = spacing + j * (bladeWidth + spacing);
-        const y = baseY + (Math.random() * yVariation) - (yVariation / 2);
-        
-        obstacles.push({
-          id: `blade_${i}_${j}`,
-          x,
-          y,
-          width: bladeWidth,
-          height: bladeWidth,
-          type: "blade",
-          rotationSpeed: 0.5 + Math.random() * 2
-        });
-      }
-    }
-    else if (obstacleType < 0.7) {
-      // Campo di piccoli ostacoli (pinball style)
-      const numSmallObs = 3 + Math.floor(Math.random() * 4);
-      
-      for (let j = 0; j < numSmallObs; j++) {
-        let attempts = 0;
-        let validPosition = false;
-        let smallObs;
-        
-        while (!validPosition && attempts < 10) {
-          const size = 15 + Math.random() * 30;
-          const x = Math.random() * (VIRTUAL_WIDTH - size);
-          const y = baseY + (Math.random() * yVariation) - (yVariation / 2);
-          
-          smallObs = {
-            id: `small_${i}_${j}_${attempts}`,
-            x,
-            y,
-            width: size,
-            height: size,
-            type: "pinball"
-          };
-          
-          validPosition = !checkOverlap(smallObs);
-          attempts++;
-        }
-        
-        if (validPosition) {
-          obstacles.push(smallObs);
-        }
-      }
-    }
-    else if (obstacleType < 0.85) {
-      // Zona boost
-      const width = VIRTUAL_WIDTH * 0.7;
-      const x = (VIRTUAL_WIDTH - width) / 2;
-      const y = baseY + (Math.random() * yVariation) - (yVariation / 2);
-      
-      obstacles.push({
-        id: `boost_${i}`,
-        x,
-        y,
-        width,
-        height: 25,
-        type: "boost"
-      });
-    }
-    // Eliminata la zona "zigzag" che generava le 3 barre grigie (non sorpassabili)
-  }
-  
-  return obstacles;
-};
 
 function Race({ marbles, onRaceEnd }) {
   const [raceMarbles, setRaceMarbles] = useState(
@@ -152,7 +24,7 @@ function Race({ marbles, onRaceEnd }) {
       vy: INITIAL_BOOST
     }))
   );
-  const [obstacles] = useState(generateObstacles(15));
+  const [obstacles] = useState(generateObstacles(50)); // Increase the number of obstacles
   const [cameraOffset, setCameraOffset] = useState(0);
   const [winner, setWinner] = useState(null);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -447,7 +319,8 @@ function Race({ marbles, onRaceEnd }) {
               borderRadius: '8px',
               cursor: 'pointer',
               boxShadow: '0 4px 10px rgba(0,0,0,0.4)',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              color: '#333' // Improved color scheme
             }}>
               Torna al menu
             </button>
@@ -457,4 +330,5 @@ function Race({ marbles, onRaceEnd }) {
     </div>
   );
 }
+export { FINISH_LINE };
 export default Race;

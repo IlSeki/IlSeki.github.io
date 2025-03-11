@@ -17,7 +17,7 @@ function App() {
   };
 
   return (
-    <div className="App container">
+    <div className="App container" style={{ backgroundColor: '#f0f0f0' }}>
       {phase === "menu" && (
         <Menu 
           marbles={marbles}
