@@ -15,7 +15,7 @@ const INITIAL_BOOST = 150; // Velocità iniziale per partire subito
 const MAX_VELOCITY = 300; // Velocità massima per limitare rimbalzi eccessivi
 
 // Genera ostacoli più vari e complessi, con spazio garantito per il passaggio
-const generateObstacles = (num = 15) => {
+const generateObstacles = (num = 25) => {
   let obstacles = [];
   
   // Funzione per evitare sovrapposizioni
@@ -457,5 +457,4 @@ function Race({ marbles, onRaceEnd }) {
     </div>
   );
 }
-
 export default Race;
