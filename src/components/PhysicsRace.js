@@ -4,8 +4,9 @@ import RaceHUD from './RaceHUD';
 import FullscreenButton from './FullscreenButton';
 import '../App.css';
 
-const { Engine, Render, Runner, World, Bodies, Body, Events, Composite } = Matter;
+const { Engine, Render, Runner, World, Bodies, Body, Events, Composite, Constraint, Vector } = Matter;
 
+const VIRTUAL_WIDTH = 800; // La larghezza logica è SEMPRE 800 per mantenere le proporzioni
 const FINISH_LINE = 10000; 
 const MARBLE_SIZE = 40; 
 
@@ -23,44 +24,34 @@ function PhysicsRace({ marbles = [], onRaceEnd }) {
   const timeIntervalRef = useRef(null);
 
   useEffect(() => {
-    let currentWidth = window.innerWidth || 800;
-
     // 1. Inizializza Matter.js Engine
     const engine = Engine.create();
-    engine.gravity.y = 1.2; // Forza di gravità
+    engine.gravity.y = 1.2; 
     engineRef.current = engine;
 
-    // 2. Inizializza il Render su Canvas
+    // 2. Inizializza il Render in modo che si adatti sempre alla VIRTUAL_WIDTH e skippi il bianco
     const render = Render.create({
       element: containerRef.current,
       canvas: canvasRef.current,
       engine: engine,
       options: {
-        width: currentWidth,
+        width: window.innerWidth, // La larghezza fisica del canvas html
         height: window.innerHeight,
         wireframes: false, 
-        background: '#1a1a2e' // Sfondo scuro elegante
+        background: '#0d0d1a' // Sfondo scuro profondo per lo spazio
       }
     });
-    
-    // Aggiungi un bellissimo render per le ombre/3D sulla canvas di base (hook di render manuale)
-    Events.on(render, 'afterRender', function() {
-        var context = render.context;
-        // Effetto luce 3D (sfumature leggere generalizzate) non strettamente necessario per ogni corpo
-        // ma rende il canvas più "corposo". 
-        // Per performance è meglio usare solo fillStyle nei render di Matter.
-    });
-    
+
     renderRef.current = render;
     const world = engine.world;
     
-    // 3. Muri laterali espandibili
+    // 3. Muri laterali Fissi sulla VIRTUAL_WIDTH
     const leftWall = Bodies.rectangle(-25, FINISH_LINE / 2, 50, FINISH_LINE + 2000, { isStatic: true, render: { fillStyle: '#333' } });
-    const rightWall = Bodies.rectangle(currentWidth + 25, FINISH_LINE / 2, 50, FINISH_LINE + 2000, { isStatic: true, render: { fillStyle: '#333' } });
+    const rightWall = Bodies.rectangle(VIRTUAL_WIDTH + 25, FINISH_LINE / 2, 50, FINISH_LINE + 2000, { isStatic: true, render: { fillStyle: '#333' } });
     World.add(world, [leftWall, rightWall]);
 
-    // 4. TRAGUARDO (Sensore per la vittoria) - largo abbastanza per ogni resize
-    const finishSensor = Bodies.rectangle(currentWidth / 2, FINISH_LINE, 5000, 100, {
+    // 4. TRAGUARDO (Sensore per la vittoria)
+    const finishSensor = Bodies.rectangle(VIRTUAL_WIDTH / 2, FINISH_LINE, VIRTUAL_WIDTH * 2, 100, {
       isStatic: true, 
       isSensor: true, 
       label: 'FinishLine', 
@@ -68,16 +59,14 @@ function PhysicsRace({ marbles = [], onRaceEnd }) {
     });
     World.add(world, finishSensor);
 
-    // Gestione ridimensionamento e Fullscreen
+    // Gestione ridimensionamento e Fullscreen ZOOM
     const handleResize = () => {
-        currentWidth = window.innerWidth;
         if (render.canvas) {
-            render.canvas.width = currentWidth;
+            render.canvas.width = window.innerWidth;
             render.canvas.height = window.innerHeight;
-            render.options.width = currentWidth;
+            render.options.width = window.innerWidth;
             render.options.height = window.innerHeight;
-            Body.setPosition(rightWall, { x: currentWidth + 25, y: rightWall.position.y });
-            Body.setPosition(finishSensor, { x: currentWidth / 2, y: finishSensor.position.y });
+            // Il LookAt dinamico farà lo zoom
         }
     };
     window.addEventListener('resize', handleResize);
@@ -85,7 +74,7 @@ function PhysicsRace({ marbles = [], onRaceEnd }) {
     // 5. BIGLIE: Inizializzazione fisica
     const matterMarbles = marbles.map((m, idx) => {
       const radius = MARBLE_SIZE / 2;
-      const x = ((idx + 1) * currentWidth) / (marbles.length + 1);
+      const x = ((idx + 1) * VIRTUAL_WIDTH) / (marbles.length + 1);
       const y = -50 - (Math.random() * 100);
       
       return Bodies.circle(x, y, radius, {
@@ -102,15 +91,14 @@ function PhysicsRace({ marbles = [], onRaceEnd }) {
     });
     World.add(world, matterMarbles);
     
-    // 6. OSTACOLI FISICI DINAMICI E VARIEGATI
-    const matterObstacles = generateMatterObstacles(120, currentWidth); 
+    // 6. OSTACOLI RIVOLUZIONARI DINAMICI E VARIEGATI
+    const matterObstacles = generateRevolutionaryObstacles(120, VIRTUAL_WIDTH, engine); 
     World.add(world, matterObstacles);
     
-    // Genera anche Cunei (Wedges) ai lati per non far scivolare le biglie diritte contro il muro
-    const wallWedges = generateWallWedges(currentWidth);
+    const wallWedges = generateWallWedges(VIRTUAL_WIDTH);
     World.add(world, wallWedges);
 
-    // 7. GESTIONE EVENTI E COLLISIONI
+    // 7. GESTIONE EVENTI E PORTALI
     Events.on(engine, 'collisionStart', (event) => {
       event.pairs.forEach(pair => {
         const { bodyA, bodyB } = pair;
@@ -123,7 +111,7 @@ function PhysicsRace({ marbles = [], onRaceEnd }) {
           
           if (!marble.activeEffects) marble.activeEffects = {};
 
-          // POWER-UPS POSITIVI
+          // POWER-UPS POSITIVI (Mantenuti dal prima come classici boost)
           if (other.label === 'PowerUp_Boost') {
             Body.setVelocity(marble, { 
                 x: marble.velocity.x * 1.5, 
@@ -132,31 +120,26 @@ function PhysicsRace({ marbles = [], onRaceEnd }) {
           }
           if (other.label === 'PowerUp_Shrink' && !marble.activeEffects.shrink) {
             marble.activeEffects.shrink = true;
-            Body.scale(marble, 0.5, 0.5); // Dimezza
+            Body.scale(marble, 0.5, 0.5); 
             setTimeout(() => { 
-                if (marble.render) { // se esiste ancora
+                if (marble.render) { 
                    Body.scale(marble, 2, 2); 
                    marble.activeEffects.shrink = false; 
                 }
             }, 3000);
           }
           
-          // POWER-DOWNS NEGATIVI
-          if (other.label === 'PowerDown_Slow') {
-            Body.setVelocity(marble, { 
-                x: marble.velocity.x * 0.3, 
-                y: marble.velocity.y * 0.3 
-            });
-          }
-          if (other.label === 'PowerDown_Grow' && !marble.activeEffects.grow) {
-            marble.activeEffects.grow = true;
-            Body.scale(marble, 2, 2); // Raddoppia
-            setTimeout(() => { 
-                if (marble.render) { 
-                    Body.scale(marble, 0.5, 0.5); 
-                    marble.activeEffects.grow = false; 
-                }
-            }, 3000);
+          // TELETRASPORTO PORTALI RIVOLUZIONARIO
+          if (other.label === 'Portal_A') {
+              if (other.plugin && other.plugin.targetPortal && !marble.activeEffects.teleporting) {
+                  marble.activeEffects.teleporting = true; // Cooldown anti-loop
+                  Body.setPosition(marble, { 
+                      x: other.plugin.targetPortal.position.x, 
+                      y: other.plugin.targetPortal.position.y + 50 
+                  });
+                  Body.setVelocity(marble, { x: 0, y: 10 }); // Sputato giù
+                  setTimeout(() => { if (marble.render) marble.activeEffects.teleporting = false; }, 1000);
+              }
           }
 
           // Vittoria
@@ -170,40 +153,75 @@ function PhysicsRace({ marbles = [], onRaceEnd }) {
       });
     });
 
-    // 8. OSTACOLI MOBILI (Rotazione/Traslazione)
+    // 8. FORZE GRAVITAZIONALI E VENTO (Gravity Wells e Acceleratori)
     Events.on(engine, 'beforeUpdate', () => {
+       // Gravità e Buchi Neri
+       const gravityWells = Composite.allBodies(engine.world).filter(b => b.label === 'GravityWell');
+       const windTunnels = Composite.allBodies(engine.world).filter(b => b.label === 'WindTunnel');
+       
+       matterMarbles.forEach(marble => {
+           // Applica buco nero
+           gravityWells.forEach(well => {
+               const distance = Vector.magnitude(Vector.sub(well.position, marble.position));
+               if (distance < well.plugin.radius) { // Nel raggio d'azione
+                   const forceMagnitude = (well.plugin.radius - distance) * 0.0001; // Forza scalata
+                   const forceVector = Vector.normalise(Vector.sub(well.position, marble.position));
+                   const appliedForce = Vector.mult(forceVector, forceMagnitude);
+                   Body.applyForce(marble, marble.position, appliedForce);
+               }
+           });
+           
+           // Applica acceleratore/vento
+           windTunnels.forEach(tunnel => {
+               const b = tunnel.bounds;
+               // Verifica collisione approssimativa AABB (Dentro la zona quadrata del tunnel)
+               if (marble.position.x > b.min.x && marble.position.x < b.max.x && 
+                   marble.position.y > b.min.y && marble.position.y < b.max.y) {
+                    Body.applyForce(marble, marble.position, tunnel.plugin.windForce);
+               }
+           });
+       });
+
+       // Rotazioni continue vecchi ostacoli dinamici
        matterObstacles.forEach(obs => {
           if (obs.label === 'MobileObstacle_Rotate') {
               Body.setAngle(obs, obs.angle + obs.plugin.rotationSpeed);
           } else if (obs.label === 'MobileObstacle_Translate') {
-              // Movimento orizzontale
               const { startX, range, speed, timeOffset } = obs.plugin;
               const newX = startX + Math.sin(engine.timing.timestamp * speed + timeOffset) * range;
               Body.setPosition(obs, { x: newX, y: obs.position.y });
           } else if (obs.label === 'MobileObstacle_Piston') {
-              // Movimento verticale
               const { startY, range, speed, timeOffset } = obs.plugin;
               const newY = startY + Math.sin(engine.timing.timestamp * speed + timeOffset) * range;
               Body.setPosition(obs, { x: obs.position.x, y: newY });
+          } else if (obs.label === 'GravityWell') {
+              // Fanno ruotare la loro texture per renderli visivamente dei "vortici"
+              Body.setAngle(obs, obs.angle + 0.05);
           }
        });
     });
 
-    // 9. LOGICA DELLA TELECAMERA 
+    // 9. LOGICA DELLA TELECAMERA - ZOOM RATIO CORRETTA
     Events.on(engine, 'beforeUpdate', () => {
       let leaderY = -Infinity;
       matterMarbles.forEach(m => {
         if (m.position.y > leaderY) leaderY = m.position.y;
       });
       
-      const targetOffset = Math.max(0, leaderY - 200);
+      const targetOffsetY = Math.max(0, leaderY - 200);
       
+      // Calcola l'aspect ratio dello schermo attuale
+      const ratio = window.innerHeight / window.innerWidth;
+      // Poiché la nostra larghezza virtuale fissa è 800, la nostra altezza virtuale di visione deve essere 800 * ratio
+      const virtualHeight = VIRTUAL_WIDTH * ratio;
+
+      // Forza la telecamera a inquadrare *esattamente* i bordi 0->800 X, e calcola l'altezza per farne lo Zoom.
       Render.lookAt(render, {
-        min: { x: 0, y: targetOffset },
-        max: { x: currentWidth, y: targetOffset + window.innerHeight } 
+        min: { x: 0, y: targetOffsetY },
+        max: { x: VIRTUAL_WIDTH, y: targetOffsetY + virtualHeight } 
       });
       
-      setCameraOffset(targetOffset);
+      setCameraOffset(targetOffsetY);
     });
 
     Render.run(render);
@@ -232,10 +250,10 @@ function PhysicsRace({ marbles = [], onRaceEnd }) {
   const leaderFakeObj = winner || { y: cameraOffset + 200 };
 
   return (
-    <div className="race-wrapper" style={{ position: 'relative', overflow: 'hidden', height: '100vh', width: '100vw', background: '#1a1a2e' }}>
+    <div className="race-wrapper" style={{ position: 'relative', overflow: 'hidden', height: '100vh', width: '100vw', background: '#0d0d1a' }}>
       
       <h1 style={{ position: 'absolute', top: 10, left: 10, color: '#fff', zIndex: 10, fontFamily: 'sans-serif', margin: 0, fontSize: '24px', textShadow: '2px 2px 4px #000' }}>
-          Physics Race (3D Mode)
+          Physics Race (Revolutionary 3D)
       </h1>
       
       <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 100, display: 'flex', gap: '10px' }}>
@@ -262,7 +280,7 @@ function PhysicsRace({ marbles = [], onRaceEnd }) {
   );
 }
 
-// Generatore di zeppe ai lati (evita lo scorrimento diretto lungo i muri)
+// Zeppe fisse geometriche
 function generateWallWedges(mapWidth) {
     const wedges = [];
     const step = 800; // Un cuneo ogni 800px per lato
@@ -270,13 +288,13 @@ function generateWallWedges(mapWidth) {
         // Cuneo Sinistro (Triangolo)
         const leftWedge = Bodies.polygon(10, y + (Math.random() * 200), 3, 60, {
             isStatic: true,
-            angle: Math.PI / 2, // Ruotato
+            angle: Math.PI / 2, 
             render: { fillStyle: '#e74c3c' }
         });
         // Cuneo Destro (Triangolo)
         const rightWedge = Bodies.polygon(mapWidth - 10, y + (Math.random() * 200), 3, 60, {
             isStatic: true,
-            angle: -Math.PI / 2, // Ruotato altrove
+            angle: -Math.PI / 2, 
             render: { fillStyle: '#e74c3c' }
         });
         wedges.push(leftWedge, rightWedge);
@@ -285,11 +303,14 @@ function generateWallWedges(mapWidth) {
 }
 
 // ---------------------------------------------------------
-// GENERATORI DI OSTACOLI MATTER.JS CON FORME 3D/GEOMETRICHE
+// GENERATORE OSTACOLI RIVOLUZIONARI E MECCANICHE
 // ---------------------------------------------------------
-export function generateMatterObstacles(numberOfBlocks, mapWidth) {
+export function generateRevolutionaryObstacles(numberOfBlocks, mapWidth, engine) {
+  const { Bodies, Constraint, Composite } = Matter;
   const obstacles = [];
   const maxGap = FINISH_LINE / numberOfBlocks;
+
+  let lastPortal = null; // Collegamento portali
 
   for (let i = 0; i < numberOfBlocks; i++) {
     const y = 300 + (i * maxGap) + (Math.random() * maxGap/2);
@@ -298,101 +319,103 @@ export function generateMatterObstacles(numberOfBlocks, mapWidth) {
     const randomChoice = Math.random();
 
     if (randomChoice < 0.15) {
-       // 1. OSTACOLO ROTANTE 3D (Esagono)
-       const spinner = Bodies.polygon(x, y, 6, 40 + Math.random() * 30, {
+       // 1. PENDOLO / SFERA DEMOLITRICE (Wrecking Ball)
+       const anchor = Bodies.circle(x, y, 10, { isStatic: true, render: { fillStyle: '#7f8c8d' } });
+       // La palla cade da un lato per farle prendere spinta (x + 150)
+       const ball = Bodies.circle(x + 120, y, 40, { 
+           restitution: 0.9, 
+           density: 0.1, // Molto pesante 
+           render: { fillStyle: '#2c3e50', strokeStyle: '#e74c3c', lineWidth: 4 } // Grigio / Rosso
+       });
+       const chain = Constraint.create({
+           bodyA: anchor, bodyB: ball, length: 150, stiffness: 0.9,
+           render: { strokeStyle: '#95a5a6', lineWidth: 3 }
+       });
+       obstacles.push(anchor, ball, chain);
+       
+    } else if (randomChoice < 0.25) {
+       // 2. POZZO GRAVITAZIONALE (Buco Nero - Invisible Center Sensor)
+       const influenceRadius = 250;
+       const gravityCore = Bodies.polygon(x, y, 6, 25, {
+           isStatic: true, 
+           isSensor: true, // Le biglie ci passano attraverso ma vengono deviate
+           label: 'GravityWell',
+           render: { fillStyle: '#8e44ad', strokeStyle: '#ffffff', lineWidth: 2 }, // Nucleo viola brillante
+           plugin: { radius: influenceRadius } 
+       });
+       // Crea visualmente dei "bracci" a spirale
+       const arm1 = Bodies.polygon(x, y, 3, 60, { isStatic: true, isSensor: true, label: 'GravityWell', render: { fillStyle: 'rgba(155, 89, 182, 0.3)' }});
+       const arm2 = Bodies.polygon(x, y, 3, 60, { angle: Math.PI, isStatic: true, isSensor: true, label: 'GravityWell', render: { fillStyle: 'rgba(155, 89, 182, 0.3)' }});
+       obstacles.push(gravityCore, arm1, arm2);
+
+    } else if (randomChoice < 0.35) {
+       // 3. TELETRASPORTI PORTALI (Coppie)
+       const isPurple = Math.random() > 0.5;
+       const color = isPurple ? '#9b59b6' : '#f1c40f'; // Viola o Giallo oro
+       const portal = Bodies.rectangle(x, y, 120, 20, {
+           isStatic: true, isSensor: true, label: 'Portal_A',
+           render: { fillStyle: color, strokeStyle: '#fff', lineWidth: 3 }
+       });
+       if (lastPortal && !lastPortal.plugin.targetPortal) {
+           // Connette a quello prima
+           lastPortal.plugin.targetPortal = portal;
+           portal.plugin = { targetPortal: lastPortal }; // Bidirezionale
+       } else {
+           portal.plugin = { targetPortal: null }; // Aspetta il prossimo
+           lastPortal = portal;
+       }
+       obstacles.push(portal);
+
+    } else if (randomChoice < 0.45) {
+       // 4. ACCELERATORI / WIND TUNNELS
+       const forceX = (Math.random() > 0.5 ? 1 : -1) * 0.005; // Spinge di lato fortissimo
+       const forceY = -0.005; // Oppure in alto (contro gravità)
+       const windTunnel = Bodies.rectangle(x, y, 150, 100, {
+           isStatic: true, isSensor: true, label: 'WindTunnel',
+           render: { fillStyle: 'rgba(52, 152, 219, 0.2)', strokeStyle: '#3498db', lineWidth: 1 }, 
+           plugin: { windForce: { x: forceX, y: forceY } } // Il vettore della forza del vento
+       });
+       obstacles.push(windTunnel);
+
+    } else if (randomChoice < 0.60) {
+       // 5. OSTACOLO ROTANTE 3D PURO O SCIVOLO (Mantenuti per varietà)
+       const spinner = Bodies.polygon(x, y, 5, 40 + Math.random() * 30, {
            isStatic: true, 
            label: 'MobileObstacle_Rotate',
-           render: { fillStyle: '#9b59b6' }, // Viola
-           plugin: { rotationSpeed: 0.03 * (Math.random() > 0.5 ? 1 : -1) } 
+           render: { fillStyle: '#1abc9c' }, // Turchese
+           plugin: { rotationSpeed: 0.05 * (Math.random() > 0.5 ? 1 : -1) } 
        });
        obstacles.push(spinner);
        
-    } else if (randomChoice < 0.30) {
-       // 2. PIATTAFORMA TRASLANTE (Oscilla Orizzontalmente)
+    } else if (randomChoice < 0.70) {
+       // 6. PIATTAFORMA TRASLANTE (Oscilla Orizzontalmente)
        const len = 150 + Math.random() * 100;
-       const slider = Bodies.rectangle(x, y, len, 25 + Math.random() * 10, {
-           isStatic: true,
-           chamfer: { radius: 10 }, // Angoli smussati = aspetto premium 3D
+       const slider = Bodies.rectangle(x, y, len, 25, {
+           isStatic: true, chamfer: { radius: 10 },
            label: 'MobileObstacle_Translate',
-           render: { fillStyle: '#3498db' }, // Blu
-           plugin: { 
-               startX: x, range: 100 + Math.random()*100, 
-               speed: 0.002 + Math.random()*0.002, timeOffset: Math.random() * 100 
-           }
+           render: { fillStyle: '#e67e22' }, 
+           plugin: { startX: x, range: 100 + Math.random()*100, speed: 0.002 + Math.random()*0.002, timeOffset: Math.random() * 100 }
        });
        obstacles.push(slider);
 
-    } else if (randomChoice < 0.45) {
-       // 3. PISTONE VERTICALE (Oscilla Verticalmente)
-       const block = Bodies.rectangle(x, y, 80 + Math.random() * 60, 40, {
-           isStatic: true,
-           chamfer: { radius: [15, 15, 0, 0] }, // A palla sopra
-           label: 'MobileObstacle_Piston',
-           render: { fillStyle: '#e67e22' }, // Arancio
-           plugin: { 
-               startY: y, range: 80 + Math.random()*80, 
-               speed: 0.003 + Math.random()*0.003, timeOffset: Math.random() * 10 
-           }
-       });
-       obstacles.push(block);
-
-    } else if (randomChoice < 0.55) {
-       // 4. POWER-UP (Velocità o Shrink - forme a stella/poligono)
-       const isShrink = Math.random() > 0.5;
-       const powerColor = isShrink ? '#00e5ff' : '#00ff55';
-       const sides = isShrink ? 5 : 8; // Pentagoni od ottagoni per il powerup
-       const boostPad = Bodies.polygon(x, y, sides, 25, {
-           isSensor: true, 
-           isStatic: true,
-           label: isShrink ? 'PowerUp_Shrink' : 'PowerUp_Boost', 
-           render: { fillStyle: powerColor } 
-       });
-       obstacles.push(boostPad);
-
-    } else if (randomChoice < 0.65) {
-       // 5. POWER-DOWN (Fanghiglia rallentante o Ingrandimento)
-       const isGrow = Math.random() > 0.5;
-       const downColor = isGrow ? '#d32f2f' : '#8d6e63'; // Rosso o Marrone
-       const mudTrap = Bodies.polygon(x, y, 4, 35, {
-           isSensor: true, 
-           isStatic: true,
-           angle: Math.PI / 4, // Rombo
-           label: isGrow ? 'PowerDown_Grow' : 'PowerDown_Slow', 
-           render: { fillStyle: downColor, opacity: 0.8 } 
-       });
-       obstacles.push(mudTrap);
-       
-    } else if (randomChoice < 0.80) {
-       // 6. FLIPPER ZONE (3-4 Respingenti 3D rotondi)
-       const numBumpers = 3 + Math.floor(Math.random() * 2);
-       for(let k=0; k<numBumpers; k++) {
-           const bumperX = x + (k*70) - ((numBumpers*70)/2);
-           const bumper = Bodies.circle(bumperX, y + (Math.random() * 50), 18, {
-               isStatic: true,
-               restitution: 1.5, // Flipper bounce
-               label: 'Bumper',
-               render: { fillStyle: '#00ccff', strokeStyle: '#ffffff', lineWidth: 3 } // Azzurro con bordo spesso stile霓虹3D
-           });
-           obstacles.push(bumper);
-       }
-
     } else {
-       // 7. OSTACOLO STATICO GEOMETRICO (Triangoli larghi / Trapezi)
-       const isTriangle = Math.random() > 0.5;
-       if (isTriangle) {
-           const triangle = Bodies.polygon(x, y, 3, 50 + Math.random()*30, {
-               isStatic: true,
-               angle: (Math.random() * Math.PI) * (Math.random() > 0.5 ? 1 : -1),
-               render: { fillStyle: '#7f8c8d' } 
-           });
-           obstacles.push(triangle);
-       } else {
-           const trapezoid = Bodies.trapezoid(x, y, 100 + Math.random()*100, 40, 0.5, {
-               isStatic: true,
-               angle: (Math.random() * 0.4) * (Math.random() > 0.5 ? 1 : -1),
+       // 7. OSTACOLO STATICO COMPLESSO (Trapezoidi asimmetrici o Flipper)
+       if (Math.random() > 0.5) {
+           const trapezoid = Bodies.trapezoid(x, y, 100 + Math.random()*150, 40, 0.2 + Math.random()*0.8, {
+               isStatic: true, angle: (Math.random() * 0.4) * (Math.random() > 0.5 ? 1 : -1),
                render: { fillStyle: '#bdc3c7' } 
            });
            obstacles.push(trapezoid);
+       } else {
+           // Piccola Flipper zone
+           for(let k=0; k<2; k++) {
+               const bumperX = x + (k*80) - 40;
+               const bumper = Bodies.circle(bumperX, y + (Math.random() * 40), 22, {
+                   isStatic: true, restitution: 1.5, label: 'Bumper',
+                   render: { fillStyle: '#ff0055', strokeStyle: '#ffffff', lineWidth: 3 } 
+               });
+               obstacles.push(bumper);
+           }
        }
     }
   }
