@@ -214,7 +214,7 @@ export const GameCanvas: React.FC = () => {
       const body = createMarbleBody(m, x, y);
       body.collisionFilter.category = CATEGORIES.marble;
       body.collisionFilter.mask = 
-        CATEGORIES.default | CATEGORIES.obstacle | CATEGORIES.wall | CATEGORIES.collectible;
+        CATEGORIES.default | CATEGORIES.obstacle | CATEGORIES.wall | CATEGORIES.collectible | CATEGORIES.marble;
       physics.addBody(body);
       marbleBodiesRef.current.set(m.id, body);
       activeEffectsRef.current.set(m.id, { powerups: new Map(), debuffs: new Map() });

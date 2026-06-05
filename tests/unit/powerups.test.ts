@@ -33,7 +33,7 @@ describe("Powerups and Debuffs Unit Tests", () => {
 
     removePowerup("ghost", body, physics);
     expect(body.collisionFilter.mask).toBe(
-      CATEGORIES.default | CATEGORIES.obstacle | CATEGORIES.wall | CATEGORIES.collectible
+      CATEGORIES.default | CATEGORIES.obstacle | CATEGORIES.wall | CATEGORIES.collectible | CATEGORIES.marble
     );
 
     physics.clear();

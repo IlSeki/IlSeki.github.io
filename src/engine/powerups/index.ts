@@ -51,7 +51,7 @@ export function removePowerup(type: PowerupType, body: Matter.Body, physics: Phy
     case "ghost":
       // Reset filter mask back to standard
       body.collisionFilter.mask = 
-        CATEGORIES.default | CATEGORIES.obstacle | CATEGORIES.wall | CATEGORIES.collectible;
+        CATEGORIES.default | CATEGORIES.obstacle | CATEGORIES.wall | CATEGORIES.collectible | CATEGORIES.marble;
       break;
     case "magnet":
       body.plugin.hasMagnet = false;

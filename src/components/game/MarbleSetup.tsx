@@ -128,7 +128,7 @@ export const MarbleSetup: React.FC = () => {
       <Card glowColor="cyan" className="lg:col-span-7 border-[#00f5ff]/25 p-5 flex flex-col h-full min-h-[420px]">
         <div className="flex justify-between items-center mb-5">
           <NeonText as="h3" color="cyan" className="text-base">
-            REGISTERED RUNNERS ({marbles.length}/20)
+            REGISTERED RUNNERS ({marbles.length})
           </NeonText>
         </div>
 
