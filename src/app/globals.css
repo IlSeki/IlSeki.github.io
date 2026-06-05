@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-deep:       #0a0a0f;
+    --bg-card:       #12121a;
+    --bg-glass:      rgba(255,255,255,0.04);
+    --neon-pink:     #ff2d78;
+    --neon-cyan:     #00f5ff;
+    --neon-yellow:   #ffe600;
+    --neon-green:    #39ff14;
+    --neon-purple:   #bf5fff;
+    --text-primary:  #f0f0ff;
+    --text-muted:    #6b6b8a;
+    --gold:          #ffd700;
+    --silver:        #c0c0c0;
+    --bronze:        #cd7f32;
+  }
+
+  body {
+    background-color: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+@keyframes glitch {
+  0%   { text-shadow: 2px 0 var(--neon-pink), -2px 0 var(--neon-cyan); }
+  25%  { text-shadow: -2px 0 var(--neon-pink), 2px 0 var(--neon-cyan); clip-path: inset(20% 0 60% 0); }
+  50%  { text-shadow: 2px 2px var(--neon-yellow), -2px -2px var(--neon-purple); }
+  75%  { text-shadow: -2px 0 var(--neon-green), 2px 0 var(--neon-pink); clip-path: inset(60% 0 20% 0); }
+  100% { text-shadow: 2px 0 var(--neon-pink), -2px 0 var(--neon-cyan); clip-path: none; }
+}
+
+@keyframes pulse-neon {
+  0%, 100% { box-shadow: 0 0 8px currentColor; }
+  50%       { box-shadow: 0 0 24px currentColor, 0 0 48px currentColor; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  20%       { transform: translate(-5px, 3px); }
+  40%       { transform: translate(5px, -3px); }
+  60%       { transform: translate(-3px, 5px); }
+  80%       { transform: translate(3px, -5px); }
+}
+
+.animate-glitch {
+  animation: glitch 1s infinite linear alternate-reverse;
+}
+
+.animate-pulse-neon {
+  animation: pulse-neon 2s infinite ease-in-out;
+}
+
+.animate-shake {
+  animation: shake 0.3s infinite ease-in-out;
+}
+
+/* Glassmorphism card utilities */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.neon-border-pink { border-color: var(--neon-pink); box-shadow: 0 0 8px var(--neon-pink); }
+.neon-border-cyan { border-color: var(--neon-cyan); box-shadow: 0 0 8px var(--neon-cyan); }
+.neon-border-green { border-color: var(--neon-green); box-shadow: 0 0 8px var(--neon-green); }
+.neon-border-yellow { border-color: var(--neon-yellow); box-shadow: 0 0 8px var(--neon-yellow); }
+.neon-border-purple { border-color: var(--neon-purple); box-shadow: 0 0 8px var(--neon-purple); }

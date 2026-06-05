@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Race {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  seed        String
+  duration    Float
+  chaosMode   Boolean   @default(false)
+  entries     RaceEntry[]
+}
+
+model RaceEntry {
+  id                String  @id @default(cuid())
+  race              Race    @relation(fields: [raceId], references: [id])
+  raceId            String
+  marbleName        String
+  imageUrl          String?
+  finishTime        Float?
+  position          Int?
+  powerupsCollected Int     @default(0)
+  debuffsHit        Int     @default(0)
+  isBot             Boolean @default(false)
+}

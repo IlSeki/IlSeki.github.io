@@ -1,0 +1,60 @@
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes neon-flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    opacity: 1;
+  }
+  20%, 24%, 55% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes rainbow {
+  0% { color: #ff2d78; }
+  20% { color: #00f5ff; }
+  40% { color: #ffe600; }
+  60% { color: #39ff14; }
+  80% { color: #bf5fff; }
+  100% { color: #ff2d78; }
+}
+
+@keyframes scanlines {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.animate-float {
+  animation: float 3s infinite ease-in-out;
+}
+
+.animate-flicker {
+  animation: neon-flicker 3s infinite alternate;
+}
+
+.animate-rainbow {
+  animation: rainbow 4s infinite linear;
+}
+
+.scanlines-overlay {
+  position: relative;
+  overflow: hidden;
+}
+
+.scanlines-overlay::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.15) 50%
+  );
+  background-size: 100% 4px;
+  z-index: 10;
+  pointer-events: none;
+}
