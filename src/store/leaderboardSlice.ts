@@ -21,16 +21,49 @@ export const createLeaderboardSlice: StateCreator<LeaderboardSlice & any, [], []
         const json = await res.json();
         if (json.success) {
           set({ leaderboard: json.data });
+          set({ loadingLeaderboard: false });
+          return;
         }
       }
     } catch (e) {
-      console.error("Failed to fetch leaderboard", e);
+      console.warn("API unavailable, falling back to localStorage", e);
+    }
+
+    // Fallback to localStorage
+    try {
+      const stored = localStorage.getItem("brainrot-marble-leaderboard");
+      if (stored) {
+        set({ leaderboard: JSON.parse(stored) });
+      } else {
+        // Initial mock static data if empty
+        const defaultData = [
+          {
+            id: "mock-1",
+            winner: "SIGMA",
+            winnerTime: 32.45,
+            chaosMode: true,
+            createdAt: new Date().toISOString()
+          },
+          {
+            id: "mock-2",
+            winner: "GYATT",
+            winnerTime: 36.72,
+            chaosMode: false,
+            createdAt: new Date().toISOString()
+          }
+        ];
+        localStorage.setItem("brainrot-marble-leaderboard", JSON.stringify(defaultData));
+        set({ leaderboard: defaultData });
+      }
+    } catch (err) {
+      console.error("Failed to read from localStorage", err);
     } finally {
       set({ loadingLeaderboard: false });
     }
   },
 
   addLeaderboardEntry: async (entry) => {
+    let success = false;
     try {
       const res = await fetch("/api/leaderboard", {
         method: "POST",
@@ -60,11 +93,34 @@ export const createLeaderboardSlice: StateCreator<LeaderboardSlice & any, [], []
         }),
       });
       if (res.ok) {
-        // Refresh local listings
-        await get().fetchLeaderboard();
+        success = true;
       }
     } catch (e) {
-      console.error("Failed to post leaderboard entry", e);
+      console.warn("API unavailable for post, falling back to localStorage", e);
+    }
+
+    if (success) {
+      await get().fetchLeaderboard();
+    } else {
+      // LocalStorage write fallback
+      try {
+        const stored = localStorage.getItem("brainrot-marble-leaderboard");
+        const list = stored ? JSON.parse(stored) : [];
+        const newEntry = {
+          id: Math.random().toString(),
+          winner: entry.winner,
+          winnerTime: entry.winnerTime,
+          chaosMode: entry.chaosMode,
+          createdAt: new Date().toISOString()
+        };
+        list.unshift(newEntry);
+        // keep top 100
+        const trimmed = list.slice(0, 100);
+        localStorage.setItem("brainrot-marble-leaderboard", JSON.stringify(trimmed));
+        set({ leaderboard: trimmed });
+      } catch (err) {
+        console.error("Failed to write to localStorage", err);
+      }
     }
   },
 });

@@ -1,27 +1,24 @@
-import React from "react";
+"use client";
+
+import React, { useEffect } from "react";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { useGameStore } from "@/store";
 import { NeonText } from "@/components/ui/NeonText";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
-// Ensure page updates dynamically on database submissions
-export const dynamic = "force-dynamic";
-
 /**
- * Server Component representing the global records board.
- * Queries SQLite directly and renders high-performance SSR tables.
+ * Client Component representing the global records board.
+ * Observes the leaderboard from the Zustand store (falling back to localStorage if API is offline).
  */
-export default async function LeaderboardPage() {
-  const races = await prisma.race.findMany({
-    take: 20,
-    orderBy: { createdAt: "desc" },
-    include: {
-      entries: {
-        orderBy: { position: "asc" }
-      }
-    }
-  });
+export default function LeaderboardPage() {
+  const leaderboard = useGameStore((state) => state.leaderboard);
+  const loadingLeaderboard = useGameStore((state) => state.loadingLeaderboard);
+  const fetchLeaderboard = useGameStore((state) => state.fetchLeaderboard);
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [fetchLeaderboard]);
 
   return (
     <div className="w-full flex flex-col items-center py-6 select-none">
@@ -42,21 +39,25 @@ export default async function LeaderboardPage() {
                 <th className="pb-3.5">DATE</th>
                 <th className="pb-3.5">WINNER</th>
                 <th className="pb-3.5">WIN TIME</th>
-                <th className="pb-3.5">RUNNERS</th>
                 <th className="pb-3.5">MODE</th>
-                <th className="pb-3.5 text-right">SEED</th>
+                <th className="pb-3.5 text-right">ID</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-xs">
-              {races.length === 0 ? (
+              {loadingLeaderboard ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-white/35 font-bold uppercase tracking-widest">
+                  <td colSpan={5} className="py-12 text-center text-white/35 font-bold uppercase tracking-widest animate-pulse">
+                    LOADING RECORDS...
+                  </td>
+                </tr>
+              ) : leaderboard.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-white/35 font-bold uppercase tracking-widest">
                     NO RECORDED RUNS YET
                   </td>
                 </tr>
               ) : (
-                races.map((race) => {
-                  const winnerEntry = race.entries.find(e => e.position === 1);
+                leaderboard.map((race: any) => {
                   const dateStr = new Date(race.createdAt).toLocaleDateString("en-US", {
                     month: "short",
                     day: "numeric",
@@ -67,9 +68,8 @@ export default async function LeaderboardPage() {
                   return (
                     <tr key={race.id} className="hover:bg-white/5 transition-all duration-200">
                       <td className="py-3 font-mono text-white/50">{dateStr}</td>
-                      <td className="py-3 font-black text-[#00f5ff]">{winnerEntry?.marbleName || "Unknown"}</td>
-                      <td className="py-3 font-mono font-bold text-[#ffe600]">{race.duration.toFixed(2)}s</td>
-                      <td className="py-3 font-mono text-white/70">{race.entries.length}</td>
+                      <td className="py-3 font-black text-[#00f5ff]">{race.winner}</td>
+                      <td className="py-3 font-mono font-bold text-[#ffe600]">{Number(race.winnerTime).toFixed(2)}s</td>
                       <td className="py-3">
                         <span className={`text-[9px] font-black px-2 py-0.5 rounded border uppercase tracking-wider ${
                           race.chaosMode 
@@ -79,7 +79,7 @@ export default async function LeaderboardPage() {
                           {race.chaosMode ? "CHAOS 🔥" : "NORMAL"}
                         </span>
                       </td>
-                      <td className="py-3 text-right font-mono text-[#bf5fff]">{race.seed}</td>
+                      <td className="py-3 text-right font-mono text-[#bf5fff]">{race.id.substring(0, 8)}</td>
                     </tr>
                   );
                 })
